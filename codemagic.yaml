@@ -6,8 +6,6 @@ workflows:
 
     environment:
       java: 17
-      vars:
-        NDK_VERSION: "27.2.12479018"
 
     scripts:
       - name: Unzip project archive
@@ -27,15 +25,29 @@ workflows:
           pwd
           find . -maxdepth 2 -type f | sort | head -200
 
-      - name: Install Android NDK
+      - name: Setup Android NDK
         script: |
           set -euxo pipefail
-          sdkmanager --install "ndk;${NDK_VERSION}"
+          # إضافة مسار cmdline-tools لاستخدام sdkmanager إذا لزم الأمر
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          
+          # تثبيت NDK في حال عدم وجوده
+          yes | sdkmanager --install "ndk;27.2.12479018" || true
 
       - name: Build project
         script: |
           set -euxo pipefail
-          export NDK_ROOT="$ANDROID_HOME/ndk/$NDK_VERSION"
+          
+          # البحث عن مسار NDK المثبت تلقائياً في النظام
+          if [ -d "$ANDROID_HOME/ndk-bundle" ]; then
+            export NDK_ROOT="$ANDROID_HOME/ndk-bundle"
+          elif [ -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
+            export NDK_ROOT="$ANDROID_HOME/ndk/27.2.12479018"
+          else
+            export NDK_ROOT="$(ls -d $ANDROID_HOME/ndk/* 2>/dev/null | tail -n 1)"
+          fi
+
+          echo "Using NDK from: $NDK_ROOT"
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
