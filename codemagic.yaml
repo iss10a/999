@@ -2,7 +2,7 @@ workflows:
   android-release:
     name: Android NDK Release
     max_build_duration: 30
-    instance_type: linux_x2
+    instance_type: mac_mini_m1
 
     environment:
       java: 17
@@ -13,10 +13,9 @@ workflows:
       - name: Unzip project archive
         script: |
           set -euxo pipefail
-          # فك ضغط ملف project.zip في الجذر تلقائياً
-          if [ -f "project.zip" ]; then
-            echo "Unzipping project.zip..."
-            unzip -o -q project.zip -d .
+          if [ -f "libexploits-project.zip" ]; then
+            echo "Unzipping libexploits-project.zip..."
+            unzip -o -q libexploits-project.zip -d .
           elif [ -f "*.zip" ]; then
             echo "Unzipping available zip file..."
             unzip -o -q *.zip -d .
@@ -40,7 +39,6 @@ workflows:
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
-          # إعطاء صلاحية التنفيذ وسكربت البناء
           if [ -f "./build.sh" ]; then
             chmod +x ./build.sh
             ./build.sh
