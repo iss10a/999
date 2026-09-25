@@ -25,20 +25,11 @@ workflows:
           pwd
           find . -maxdepth 2 -type f | sort | head -200
 
-      - name: Setup Android NDK
-        script: |
-          set -euxo pipefail
-          # إضافة مسار cmdline-tools لاستخدام sdkmanager إذا لزم الأمر
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          
-          # تثبيت NDK في حال عدم وجوده
-          yes | sdkmanager --install "ndk;27.2.12479018" || true
-
       - name: Build project
         script: |
           set -euxo pipefail
           
-          # البحث عن مسار NDK المثبت تلقائياً في النظام
+          # تحديد مسار NDK
           if [ -d "$ANDROID_HOME/ndk-bundle" ]; then
             export NDK_ROOT="$ANDROID_HOME/ndk-bundle"
           elif [ -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
@@ -51,9 +42,13 @@ workflows:
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
+          # تعيين متغير مسار المشروع لـ NDK
+          export NDK_PROJECT_PATH=.
+
           if [ -f "./build.sh" ]; then
             chmod +x ./build.sh
-            ./build.sh
+            # تمرير متغير NDK_PROJECT_PATH للسكربت
+            NDK_PROJECT_PATH=. ./build.sh
           elif [ -f "./Android.mk" ]; then
             "$NDK_ROOT/ndk-build" NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk
           else
@@ -65,14 +60,14 @@ workflows:
         script: |
           set -euxo pipefail
           mkdir -p build_artifacts
-          find . -type f -name "*.apk" -exec cp -v {} build_artifacts/ \;
+          find . -type f -name "*.apk" -o -name "*.so" -exec cp -v {} build_artifacts/ \;
 
-          if ! find build_artifacts -type f -name "*.apk" | grep -q .; then
-            echo "ERROR: No APK file was generated."
+          if ! find build_artifacts -type f \( -name "*.apk" -o -name "*.so" \) | grep -q .; then
+            echo "ERROR: No output binary files (.apk or .so) were produced."
             exit 1
           fi
 
     artifacts:
-      - build_artifacts/*.apk
-      - "**/build/outputs/**/*.apk"
+      - build_artifacts/*
+      - "**/libs/**/*.so"
       - "**/*.so"
