@@ -42,20 +42,23 @@ workflows:
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
-          # تشغيل البناء وتحديد مسار Android.mk و Application.mk المباشر
+          # تشغيل البناء مع إضافة -D_GNU_SOURCE ورفع APP_PLATFORM إلى android-23
           "$NDK_ROOT/ndk-build" \
             NDK_PROJECT_PATH=. \
             APP_BUILD_SCRIPT=./Android.mk \
-            NDK_APPLICATION_MK=./Application.mk
+            NDK_APPLICATION_MK=./Application.mk \
+            APP_PLATFORM=android-23 \
+            APP_CFLAGS="-D_GNU_SOURCE" \
+            APP_CPPFLAGS="-D_GNU_SOURCE"
 
       - name: Collect Output Binaries
         script: |
           set -euxo pipefail
           mkdir -p build_artifacts
-          find . -type f \( -name "*.apk" -o -name "*.so" \) -exec cp -v {} build_artifacts/ \;
+          find . -type f \( -name "*.apk" -o -name "*.so" -o -type f -maxdepth 3 -executable \) -exec cp -v {} build_artifacts/ \;
 
           if ! find build_artifacts -type f | grep -q .; then
-            echo "ERROR: No binary output (.apk or .so) was generated."
+            echo "ERROR: No binary output file was generated."
             exit 1
           fi
 
