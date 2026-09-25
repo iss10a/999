@@ -23,13 +23,12 @@ workflows:
         script: |
           set -euxo pipefail
           pwd
-          find . -maxdepth 2 -type f | sort | head -200
+          find . -maxdepth 3 | sort | head -200
 
       - name: Build project
         script: |
           set -euxo pipefail
           
-          # تحديد مسار NDK
           if [ -d "$ANDROID_HOME/ndk-bundle" ]; then
             export NDK_ROOT="$ANDROID_HOME/ndk-bundle"
           elif [ -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
@@ -42,20 +41,33 @@ workflows:
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
-          # تشغيل البناء مع إضافة -D_GNU_SOURCE ورفع APP_PLATFORM إلى android-23
-          "$NDK_ROOT/ndk-build" \
-            NDK_PROJECT_PATH=. \
-            APP_BUILD_SCRIPT=./Android.mk \
-            NDK_APPLICATION_MK=./Application.mk \
-            APP_PLATFORM=android-23 \
-            APP_CFLAGS="-D_GNU_SOURCE" \
-            APP_CPPFLAGS="-D_GNU_SOURCE"
+          # تحديد مسار Android.mk و Application.mk المباشر داخل مجلد Libexploits
+          if [ -f "./Libexploits/Android.mk" ]; then
+            "$NDK_ROOT/ndk-build" \
+              NDK_PROJECT_PATH=./Libexploits \
+              APP_BUILD_SCRIPT=./Libexploits/Android.mk \
+              NDK_APPLICATION_MK=./Libexploits/Application.mk \
+              APP_PLATFORM=android-23 \
+              APP_CFLAGS="-D_GNU_SOURCE" \
+              APP_CPPFLAGS="-D_GNU_SOURCE"
+          elif [ -f "./Android.mk" ]; then
+            "$NDK_ROOT/ndk-build" \
+              NDK_PROJECT_PATH=. \
+              APP_BUILD_SCRIPT=./Android.mk \
+              NDK_APPLICATION_MK=./Application.mk \
+              APP_PLATFORM=android-23 \
+              APP_CFLAGS="-D_GNU_SOURCE" \
+              APP_CPPFLAGS="-D_GNU_SOURCE"
+          else
+            echo "ERROR: Android.mk not found in root or Libexploits directory."
+            exit 1
+          fi
 
       - name: Collect Output Binaries
         script: |
           set -euxo pipefail
           mkdir -p build_artifacts
-          find . -type f \( -name "*.apk" -o -name "*.so" -o -type f -maxdepth 3 -executable \) -exec cp -v {} build_artifacts/ \;
+          find . -type f \( -name "*.apk" -o -name "*.so" \) -exec cp -v {} build_artifacts/ \;
 
           if ! find build_artifacts -type f | grep -q .; then
             echo "ERROR: No binary output file was generated."
