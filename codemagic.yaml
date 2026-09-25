@@ -10,7 +10,19 @@ workflows:
         NDK_VERSION: "27.2.12479018"
 
     scripts:
-      - name: Inspect project
+      - name: Unzip project archive
+        script: |
+          set -euxo pipefail
+          # فك ضغط ملف project.zip في الجذر تلقائياً
+          if [ -f "project.zip" ]; then
+            echo "Unzipping project.zip..."
+            unzip -o -q project.zip -d .
+          elif [ -f "*.zip" ]; then
+            echo "Unzipping available zip file..."
+            unzip -o -q *.zip -d .
+          fi
+
+      - name: Inspect project after unzip
         script: |
           set -euxo pipefail
           pwd
@@ -28,13 +40,14 @@ workflows:
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
+          # إعطاء صلاحية التنفيذ وسكربت البناء
           if [ -f "./build.sh" ]; then
             chmod +x ./build.sh
             ./build.sh
           elif [ -f "./Android.mk" ]; then
             "$NDK_ROOT/ndk-build" NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk
           else
-            echo "ERROR: build.sh or Android.mk not found."
+            echo "ERROR: Neither build.sh nor Android.mk was found after unzipping."
             exit 1
           fi
 
@@ -45,11 +58,11 @@ workflows:
           find . -type f -name "*.apk" -exec cp -v {} build_artifacts/ \;
 
           if ! find build_artifacts -type f -name "*.apk" | grep -q .; then
-            echo "ERROR: No APK was produced."
+            echo "ERROR: No APK file was generated."
             exit 1
           fi
 
     artifacts:
       - build_artifacts/*.apk
       - "**/build/outputs/**/*.apk"
-      - "**/libs/**/*.so"
+      - "**/*.so"
