@@ -42,28 +42,20 @@ workflows:
           export ANDROID_NDK_HOME="$NDK_ROOT"
           export PATH="$NDK_ROOT:$PATH"
 
-          # تعيين متغير مسار المشروع لـ NDK
-          export NDK_PROJECT_PATH=.
+          # تشغيل البناء وتحديد مسار Android.mk و Application.mk المباشر
+          "$NDK_ROOT/ndk-build" \
+            NDK_PROJECT_PATH=. \
+            APP_BUILD_SCRIPT=./Android.mk \
+            NDK_APPLICATION_MK=./Application.mk
 
-          if [ -f "./build.sh" ]; then
-            chmod +x ./build.sh
-            # تمرير متغير NDK_PROJECT_PATH للسكربت
-            NDK_PROJECT_PATH=. ./build.sh
-          elif [ -f "./Android.mk" ]; then
-            "$NDK_ROOT/ndk-build" NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk
-          else
-            echo "ERROR: Neither build.sh nor Android.mk was found after unzipping."
-            exit 1
-          fi
-
-      - name: Collect APK
+      - name: Collect Output Binaries
         script: |
           set -euxo pipefail
           mkdir -p build_artifacts
-          find . -type f -name "*.apk" -o -name "*.so" -exec cp -v {} build_artifacts/ \;
+          find . -type f \( -name "*.apk" -o -name "*.so" \) -exec cp -v {} build_artifacts/ \;
 
-          if ! find build_artifacts -type f \( -name "*.apk" -o -name "*.so" \) | grep -q .; then
-            echo "ERROR: No output binary files (.apk or .so) were produced."
+          if ! find build_artifacts -type f | grep -q .; then
+            echo "ERROR: No binary output (.apk or .so) was generated."
             exit 1
           fi
 
